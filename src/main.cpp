@@ -10,7 +10,7 @@ int main() {
 
 
 
-    cpu new_cpu = cpu("/home/chris/Documents/school/cs2410/powerpc_simulator/programs/handout.txt");
+    cpu new_cpu = cpu("programs/handout.txt");
 
     return 0;
 }
