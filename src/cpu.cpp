@@ -13,6 +13,8 @@ public:
 
   //we need a program file to construct our cpu
   cpu(string filename){
+
+    
     prgName = filename;
     //open our program file
     fstream progFile;

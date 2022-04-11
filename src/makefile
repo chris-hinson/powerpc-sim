@@ -10,11 +10,10 @@ CFLAGS = -Wall -g --std=c++17
 # Targets needed to bring the executable up to date
 
 main: main.o
-	$(CC) $(CFLAGS) -o emu main.o 
+	$(CC) $(CFLAGS) -o ./out/emu ./out/main.o
 
 main.o: main.cpp
-	$(CC) $(CFLAGS) -c main.cpp
+	$(CC) $(CFLAGS) -o ./out/main.o -c main.cpp
 
-#Point.o: Point.h
-
-#Square.o: Square.h Point.h
+clean:
+	rm main.o
