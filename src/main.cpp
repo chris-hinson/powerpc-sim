@@ -11,6 +11,7 @@ int main() {
 
 
     cpu new_cpu = cpu("../programs/handout.txt");
+    new_cpu.prettyPrint();
 
     return 0;
 }

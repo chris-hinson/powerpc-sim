@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <stdlib.h>
+#include <unordered_map>
 #include "termcolor.hpp"
 #include "instruction.cpp"
 using namespace std;
@@ -8,13 +9,14 @@ class cpu{
 public:
   int ticks;
   string prgName;
-  vector<string> program;
+  vector<instruction> program;
   vector<byte> data;
 
   //we need a program file to construct our cpu
   cpu(string filename){
 
-    
+    ////////////////////////////////////////////////////////////////////////////
+    //parsing our input file
     prgName = filename;
     //open our program file
     fstream progFile;
@@ -24,29 +26,41 @@ public:
         exit(1); // terminate with error
     }
 
-    //read file into our program vec
+    //read file into a vector for us to parse
+    std::vector<string> linebuf;
     string curLine;
+    //keep a string,address map for labels
+    unordered_map<string,size_t> labels;
+    size_t cur_instr_addr = 0;
     while (getline(progFile, curLine)) {
-        //does this line contain a label?
+        //if this line has a label, add the label to labels mapping and then add
+        //the rest of the line to our buffer vec to be parsed
         size_t hasLabel = curLine.find(":");
         if (hasLabel != string::npos){
-          cout << termcolor::red <<"WE FOUND A LABEL: " << curLine << "\n" << termcolor::reset;
-          //remove the label before adding the instruction
+          string label = curLine.substr(0, hasLabel);
           curLine = curLine.substr(hasLabel + 1);
+          cout << "found label at " << cur_instr_addr  << " " << label;
+          cout << " rest of instruction is " << curLine << '\n';
+          labels[label] = cur_instr_addr;
         }
 
-        program.push_back(curLine);
+        linebuf.push_back(curLine);
+        cur_instr_addr +=32;
     }
     progFile.close();
 
-    cout << termcolor::yellow << "constructed cpu" << "\n" << termcolor::reset;
+    //now that we have our vector of lines as well as map of labels to addresses
+    //lets start parsing
+    ////////////////////////////////////////////////////////////////////////////
 
+
+  }
+
+  void prettyPrint(){
     //DEBUG - print out string vec to make sure we read program correctly
-    // Declaring iterator to a vector
-    vector<string>::iterator ptr;
-    // Displaying vector elements using begin() and end()
     cout << termcolor::green <<"cpu instruction \"cache\" : \n" << termcolor::reset;
-    for (ptr = program.begin(); ptr < program.end(); ptr++)
-        cout << *ptr << "\n";
+    for (int i = 0; i < program.size(); i++)
+        program[i].prettyPrint();
+
   }
 };
