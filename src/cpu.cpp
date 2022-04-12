@@ -3,13 +3,14 @@
 #include <unordered_map>
 #include "termcolor.hpp"
 #include "instruction.cpp"
+#include "registers.cpp"
 using namespace std;
 
 class cpu{
 public:
   int ticks;
   string prgName;
-  vector<instruction> program;
+  vector<instruction*> program;
   vector<byte> data;
 
   //we need a program file to construct our cpu
@@ -51,6 +52,9 @@ public:
 
     //now that we have our vector of lines as well as map of labels to addresses
     //lets start parsing
+    for (size_t i = 0; i < linebuf.size(); i++)
+      program.push_back(parse(linebuf[i], i*32));
+
     ////////////////////////////////////////////////////////////////////////////
 
 
@@ -60,7 +64,7 @@ public:
     //DEBUG - print out string vec to make sure we read program correctly
     cout << termcolor::green <<"cpu instruction \"cache\" : \n" << termcolor::reset;
     for (int i = 0; i < program.size(); i++)
-        program[i].prettyPrint();
+        program[i]->prettyPrint();
 
   }
 };
