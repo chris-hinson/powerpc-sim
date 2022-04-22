@@ -2,9 +2,11 @@
 //parsing regex including capturing groups
 //(\w+:)?\s?(fld|fsd|add|addi|fadd|fsub|fmul|fdiv|bne)\s(?:(\w*)\s*,\s*(?:(\w*)\s*,\s*(-?\w*))|(?:(\w*)\s*,\s*(\d*)\((\w*)\)))
 #include <regex>
-
 using namespace std;
 
+#define STRIP_NON_DIGIT(source) source.erase(std::remove_if(source.begin(), source.end(),[](char c) { return !std::isdigit(c); }),source.end());
+//#define STRIP_NON_DIGIT(str) str.erase(remove_if(str.begin(), str.end(), ::isdigit), str.end())
+#define TO_NUM(str) atoi(str.c_str())
 enum op {bad, fld, fsd, add, addi, fadd, fsub, fmul, fdiv, bne};
 const char* opNames[] = {"bad", "fld", "fsd", "add", "addi", "fadd", "fsub", "fmul", "fdiv", "bne"};
 
@@ -31,6 +33,8 @@ struct instruction {
 
 instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls){
 
+  //source.erase(std::remove_if(source.begin(), source.end(),[](char c) { return !std::isdigit(c); }),source.end());
+
   //cout << "parsing " << op << "\n";
   smatch match;
   regex_match(op, match, instr_regex);
@@ -55,85 +59,110 @@ instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls)
 
   //god i miss rust pattern matching
   if (!decodeOP.compare("fld")) {
-    // fld(size_t instr_addr, size_t dst_reg, size_t src_reg, size_t offset){
-    int dst = ((int)match.str(6).at(1)) - 48;
-    int offset = atoi(match.str(7).c_str());
-    int src = ((int)match.str(8).at(1)) - 48;
+    string dst = match.str(6);
+    string offset = match.str(7);
+    string src = match.str(8);
 
-    vector<int> v{ dst, offset, src };
+    STRIP_NON_DIGIT(dst);
+    STRIP_NON_DIGIT(offset);
+    STRIP_NON_DIGIT(src);
+
+    vector<int> v{ TO_NUM(dst), TO_NUM(offset), TO_NUM(src) };
     return new instruction{i_addr,op::fld, v};
   }
   else if (!decodeOP.compare("fsd")) {
-    //  fsd (size_t instr_addr, size_t src_reg, size_t dst_reg, size_t offset){
-    int src = ((int)match.str(6).at(1)) - 48;
-    int offset = atoi(match.str(7).c_str());
-    int dst = ((int)match.str(8).at(1)) - 48;
+    string src = match.str(6);
+    string offset = match.str(7);
+    string dst = match.str(8);
 
-    vector<int> v{ src, offset, dst };
+    STRIP_NON_DIGIT(src);
+    STRIP_NON_DIGIT(offset);
+    STRIP_NON_DIGIT(dst);
+
+    vector<int> v{ TO_NUM(src), TO_NUM(offset), TO_NUM(dst) };
     return new instruction{i_addr,op::fsd, v};
   }
   else if (!decodeOP.compare("add")) {
     //  add(size_t instr_addr, size_t dst_reg, size_t src_reg1, size_t src_reg2){
-    int dst = ((int)match.str(3).at(1)) - 48;
-    int src1 = ((int)match.str(4).at(1)) - 48;
-    int src2 = ((int)match.str(5).at(1)) - 48;
+    string dst = match.str(3);
+    string src1 = match.str(4);
+    string src2 = match.str(5);
 
-    vector<int> v{ dst, src1, src2 };
+    STRIP_NON_DIGIT(dst);
+    STRIP_NON_DIGIT(src1);
+    STRIP_NON_DIGIT(src2);
+
+    vector<int> v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
     return new instruction{i_addr,op::add, v};
   }
   else if (!decodeOP.compare("fadd")) {
-    //  fadd(size_t instr_addr, size_t dst_reg, size_t src_reg1, size_t src_reg2){
-    int dst = ((int)match.str(3).at(1)) - 48;
-    int src1 = ((int)match.str(4).at(1)) - 48;
-    int src2 = ((int)match.str(5).at(1)) - 48;
+    string dst = match.str(3);
+    string src1 = match.str(4);
+    string src2 = match.str(5);
 
-    vector<int> v{ dst, src1, src2 };
+    STRIP_NON_DIGIT(dst);
+    STRIP_NON_DIGIT(src1);
+    STRIP_NON_DIGIT(src2);
+
+    vector<int> v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
     return new instruction{i_addr,op::fadd, v};
   }
   else if (!decodeOP.compare("fsub")) {
-    //  fsub(size_t instr_addr, size_t dst_reg, size_t src_reg1, size_t src_reg2){
-    int dst = ((int)match.str(3).at(1)) - 48;
-    int src1 = ((int)match.str(4).at(1)) - 48;
-    int src2 = ((int)match.str(5).at(1)) - 48;
+    string dst = match.str(3);
+    string src1 = match.str(4);
+    string src2 = match.str(5);
 
-    vector<int> v{ dst, src1, src2 };
+    STRIP_NON_DIGIT(dst);
+    STRIP_NON_DIGIT(src1);
+    STRIP_NON_DIGIT(src2);
+
+    vector<int> v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
     return new instruction{i_addr,op::fsub, v};
   }
   else if (!decodeOP.compare("fmul")) {
-    //  fmul(size_t instr_addr, size_t dst_reg, size_t src_reg1, size_t src_reg2){
-    int dst = ((int)match.str(3).at(1)) - 48;
-    int src1 = ((int)match.str(4).at(1)) - 48;
-    int src2 = ((int)match.str(5).at(1)) - 48;
+    string dst = match.str(3);
+    string src1 = match.str(4);
+    string src2 = match.str(5);
 
-    vector<int> v{ dst, src1, src2 };
+    STRIP_NON_DIGIT(dst);
+    STRIP_NON_DIGIT(src1);
+    STRIP_NON_DIGIT(src2);
+
+    vector<int> v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
     return new instruction{i_addr,op::fmul, v};
   }
   else if (!decodeOP.compare("fdiv")) {
-    //  fdiv(size_t instr_addr, size_t dst_reg, size_t src_reg1, size_t src_reg2){
-    int dst = ((int)match.str(3).at(1)) - 48;
-    int src1 = ((int)match.str(4).at(1)) - 48;
-    int src2 = ((int)match.str(5).at(1)) - 48;
+    string dst = match.str(3);
+    string src1 = match.str(4);
+    string src2 = match.str(5);
 
-    vector<int> v{ dst, src1, src2 };
+    STRIP_NON_DIGIT(dst);
+    STRIP_NON_DIGIT(src1);
+    STRIP_NON_DIGIT(src2);
+
+    vector<int> v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
     return new instruction{i_addr,op::fdiv, v};
   }
   else if (!decodeOP.compare("addi")) {
-    //  addi(size_t instr_addr, size_t dst_reg, size_t src_reg1, size_t src_reg2){
-    int dst = ((int)match.str(3).at(1)) - 48;
-    int src1 = ((int)match.str(4).at(1)) - 48;
+    string dst = match.str(3);
+    string src1 = match.str(4);
     int src2 = atoi(match.str(5).c_str());
 
-    vector<int> v{ dst, src1, src2 };
+    STRIP_NON_DIGIT(dst);
+    STRIP_NON_DIGIT(src1);
+
+    vector<int> v{ TO_NUM(dst), TO_NUM(src1), src2};
     return new instruction{i_addr,op::addi, v};
   }
   else if (!decodeOP.compare("bne")) {
-    //  bne(size_t instr_addr, size_t src_reg, size_t comp_reg, long int offset )
-    int dst = ((int)match.str(3).at(1)) - 48;
-    int src1 = ((int)match.str(4).at(1)) - 48;
-    //int src2 = ((int)match.str(5).at(0)) - 48;
+    string dst = match.str(3);
+    string src1 = match.str(4);
     int src2 = (*lbls)[match.str(5)]-i_addr;
 
-    vector<int> v{ dst, src1, src2 };
+    STRIP_NON_DIGIT(dst);
+    STRIP_NON_DIGIT(src1);
+
+    vector<int> v{ TO_NUM(dst), TO_NUM(src1), src2};
     return new instruction{i_addr,op::bne, v};
   }
   else{
