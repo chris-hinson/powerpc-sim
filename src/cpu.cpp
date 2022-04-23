@@ -3,8 +3,10 @@
 #include <unordered_map>
 #include "termcolor.hpp"
 #include "instruction.cpp"
-#include "registers.cpp"
+//#include "registers.cpp"
 using namespace std;
+
+
 
 class cpu{
 public:
@@ -12,12 +14,14 @@ public:
   string prgName;
   vector<instruction*> program;
   vector<char> data;
+  size_t PC = 0;
 
   //we need a program file to construct our cpu
   cpu(string filename){
 
     ////////////////////////////////////////////////////////////////////////////
-    //data(4096,0);
+    PC = 0;
+
     data.resize(4096,0);
 
     //parsing our input file
@@ -60,11 +64,12 @@ public:
     }
     progFile.close();
 
+    //parsing the file from our buffer
     size_t i = 0;
 
     for (; i < linebuf.size(); i++) {
+      //we can identify data because its lines have a ,
       size_t split = linebuf[i].find(",");
-
       //break on the first line we dont find a , so we can start parsing instrs
       if (split == string::npos)
         break;
@@ -79,11 +84,19 @@ public:
 
     //skip the blank line
     i++;
+    //keep track of the instructino line numbers
+    int j = i;
+    //we need to update our labels now
+    for (auto i: labels) {
+      labels[i.first] = i.second-j;
+      //cout << "label: " << i.first << ":" << i.second <<endl;
+    }
+
     //now that we have our vector of lines as well as map of labels to addresses
     //lets start parsing
     for (; i < linebuf.size(); i++)
     {
-      instruction* instr = parse(linebuf[i], i, &labels);
+      instruction* instr = parse(linebuf[i], i-j, &labels);
       program.push_back(instr);
     }
 
@@ -92,8 +105,83 @@ public:
 
   }
 
+
+  vector<instruction> fetch()
+  {
+    vector <instruction> fetched;
+    vector<int> reads;
+    vector<int> writes;
+
+    for (size_t i = 0; i < 4;i++){
+
+      //dont let us segfault trying to fetch off the end of the i-cache
+      if (i >= program.size()){
+        cout << "cant fetch off end of i cache";
+        break;
+      }
+
+
+      instruction cur = *program[PC];
+      printf("trying to fetch:");
+      cur.prettyPrint();
+      vector<int> cur_read_deps = cur.read_deps();
+      vector<int> cur_write_deps = cur.write_deps();
+
+      //check if we are reading from a value that has already been written in this packet
+      for(int j:cur_read_deps){
+        if (std::count(writes.begin(), writes.end(), j)) {
+          cout << termcolor::red << "RAW found, not pushing this inst, just returning" << termcolor::reset << endl;
+          return fetched;
+        }
+      }
+
+      //if this instruction is ok to push, add its read and write deps to the total read and writes
+      reads.insert(reads.end(), cur_read_deps.begin(), cur_read_deps.end());
+      writes.insert(writes.end(), cur_write_deps.begin(), cur_write_deps.end());
+
+      //put the fetched instr in the fetched buffer
+      fetched.push_back(cur);
+
+      //make sure we update our pc
+      PC++;
+    }
+
+
+    return fetched;
+  }
+
+  //step our cpu
+  void step(){
+    //FETCH
+    //fetchup to NF instructions
+    vector<instruction> fetched = fetch();
+    cout << "we fetched : "<<endl;
+    for (instruction i : fetched)
+      i.prettyPrint();
+    //DECODE
+    //decode the instructions coming from fetch
+    //vector<instruction> decoded = decode();
+
+
+    //ISSUE
+    //If a RES station and a ROB are free, issue the instruction to the RES
+    //station after reading ready registers and renaming non-ready registers
+    //EXECUTION
+    //When both operands are ready, then execute; if not ready, watch CDB
+    //for result; when both in reservation station, execute (checks RAW)
+    //WRITE RESULT(WB)
+    //Write on CDB to all awaiting RES stations & send the instruction to the
+    //ROB; mark reservation station available.
+    //COMMIT (sometimes called graduation)
+    //When instruction is at head of ROB, update registers (or memory) with
+    //result and free ROB. A miss-predicted branch flushes all non-committed
+    //instructions.
+
+  }
+
   void prettyPrint(){
     //DEBUG - print out string vec to make sure we read program correctly
+    cout << termcolor::blue << "PC = " << PC << "\n" << termcolor::reset;
     cout << termcolor::green <<"cpu instruction \"cache\" : \n" << termcolor::reset;
     for (instruction* i: program)
         i->prettyPrint();

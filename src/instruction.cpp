@@ -2,12 +2,17 @@
 //parsing regex including capturing groups
 //(\w+:)?\s?(fld|fsd|add|addi|fadd|fsub|fmul|fdiv|bne)\s(?:(\w*)\s*,\s*(?:(\w*)\s*,\s*(-?\w*))|(?:(\w*)\s*,\s*(\d*)\((\w*)\)))
 #include <regex>
+#include "registers.cpp"
 using namespace std;
 
-#define STRIP_NON_DIGIT(source) source.erase(std::remove_if(source.begin(), source.end(),[](char c) { return !std::isdigit(c); }),source.end());
+//#define STRIP_NON_DIGIT(source) source.erase(std::remove_if(source.begin(), source.end(),[](char c) { return !std::isdigit(c); }),source.end());
+#define STRIP_NON_DIGIT(source) source.erase(std::remove_if(source.begin(), source.end(), [](char c) {return std::isspace(c);}),source.end());
 //#define STRIP_NON_DIGIT(str) str.erase(remove_if(str.begin(), str.end(), ::isdigit), str.end())
-#define TO_NUM(str) atoi(str.c_str())
+//#define TO_NUM(str) atoi(str.c_str())
+#define TO_NUM(str) (int)str_to_reg(str)
 enum op {bad, fld, fsd, add, addi, fadd, fsub, fmul, fdiv, bne};
+
+
 const char* opNames[] = {"bad", "fld", "fsd", "add", "addi", "fadd", "fsub", "fmul", "fdiv", "bne"};
 
 string re = R"((\w+:)?\s?(fld|fsd|add|addi|fadd|fsub|fmul|fdiv|bne)\s(?:(\w*)\s*,\s*(?:(\w*)\s*,\s*(-?\w*))|(?:(\w*)\s*,\s*(\d*)\((\w*)\))))";
@@ -27,6 +32,104 @@ struct instruction {
       printf("%d, ",i);
     }
     printf("\n");
+  }
+
+  //returns registers that the instruction reads from
+  vector<int> read_deps()
+  {
+    vector<int> deps;
+    switch (opcode){
+      //fld r0,0(r0)
+      case fld:
+        deps.push_back(fields[2]);
+        break;
+      //fsd r0,0(r0)
+      case fsd:
+        //note that in fsd we write to no registers but must read botht the reg
+        //whos value we are storing AND the reg who has our address
+        deps.push_back(fields[0]);
+        deps.push_back(fields[2]);
+        break;
+      //add r0,r1,r2
+      case add:
+        deps.push_back(fields[1]);
+        deps.push_back(fields[2]);
+        break;
+      //addi r0,r1,3
+      case addi:
+        deps.push_back(fields[1]);
+        break;
+      //fadd r0,r1,r2
+      case fadd:
+        deps.push_back(fields[1]);
+        deps.push_back(fields[2]);
+        break;
+      //fsub r0,r1,r2
+      case fsub:
+        deps.push_back(fields[1]);
+        deps.push_back(fields[2]);
+        break;
+      //fmul r0,r1,r2
+      case fmul:
+        deps.push_back(fields[1]);
+        deps.push_back(fields[2]);
+        break;
+      //fdiv r0,r1,r2
+      case fdiv:
+        deps.push_back(fields[1]);
+        deps.push_back(fields[2]);
+        break;
+      //bne r0,r1,addr
+      case bne:
+        deps.push_back(fields[0]);
+        deps.push_back(fields[1]);
+        break;
+      }
+      return deps;
+    }
+
+    //returns the registers that the instruction writes to
+    vector<int> write_deps(){
+      vector<int> deps;
+      switch (opcode){
+        //fld r0,0(r1)
+        case fld:
+          deps.push_back(fields[0]);
+          break;
+        //fsd r0,0(r1)
+        case fsd:
+          //fsd does not write to any regs
+          break;
+        //add r0,r1,r2
+        case add:
+          deps.push_back(fields[0]);
+          break;
+        //addi r0,r1,imm
+        case addi:
+          deps.push_back(fields[0]);
+          break;
+        //fadd r0,r1,r2
+        case fadd:
+          deps.push_back(fields[0]);
+          break;
+        //fsub r0,r1,r2
+        case fsub:
+          deps.push_back(fields[0]);
+          break;
+        //fmul r0,r1,r2
+        case fmul:
+          deps.push_back(fields[0]);
+          break;
+        //fmul r0,r1,r2
+        case fdiv:
+          deps.push_back(fields[0]);
+          break;
+        //bne r0,r1,imm
+        case bne:
+          //bne does not write any regs
+          break;
+    }
+    return deps;
   }
 };
 ////////////////////////////////////////////////////////////////////////////////
@@ -49,7 +152,7 @@ instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls)
   }
   else {
       cout << termcolor::red << "No match is found. bad op?" << endl << termcolor::reset;
-      vector<int> v;
+      vector<int >v;
       return new instruction{0,op::bad, v};
   }*/
 
@@ -67,7 +170,7 @@ instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls)
     STRIP_NON_DIGIT(offset);
     STRIP_NON_DIGIT(src);
 
-    vector<int> v{ TO_NUM(dst), TO_NUM(offset), TO_NUM(src) };
+    vector<int >v{ TO_NUM(dst), atoi(offset.c_str()), TO_NUM(src) };
     return new instruction{i_addr,op::fld, v};
   }
   else if (!decodeOP.compare("fsd")) {
@@ -79,7 +182,7 @@ instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls)
     STRIP_NON_DIGIT(offset);
     STRIP_NON_DIGIT(dst);
 
-    vector<int> v{ TO_NUM(src), TO_NUM(offset), TO_NUM(dst) };
+    vector<int >v{ TO_NUM(src), atoi(offset.c_str()), TO_NUM(dst) };
     return new instruction{i_addr,op::fsd, v};
   }
   else if (!decodeOP.compare("add")) {
@@ -92,7 +195,7 @@ instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls)
     STRIP_NON_DIGIT(src1);
     STRIP_NON_DIGIT(src2);
 
-    vector<int> v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
+    vector<int >v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
     return new instruction{i_addr,op::add, v};
   }
   else if (!decodeOP.compare("fadd")) {
@@ -104,7 +207,7 @@ instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls)
     STRIP_NON_DIGIT(src1);
     STRIP_NON_DIGIT(src2);
 
-    vector<int> v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
+    vector<int >v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
     return new instruction{i_addr,op::fadd, v};
   }
   else if (!decodeOP.compare("fsub")) {
@@ -116,7 +219,7 @@ instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls)
     STRIP_NON_DIGIT(src1);
     STRIP_NON_DIGIT(src2);
 
-    vector<int> v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
+    vector<int >v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
     return new instruction{i_addr,op::fsub, v};
   }
   else if (!decodeOP.compare("fmul")) {
@@ -128,7 +231,7 @@ instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls)
     STRIP_NON_DIGIT(src1);
     STRIP_NON_DIGIT(src2);
 
-    vector<int> v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
+    vector<int >v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
     return new instruction{i_addr,op::fmul, v};
   }
   else if (!decodeOP.compare("fdiv")) {
@@ -140,7 +243,7 @@ instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls)
     STRIP_NON_DIGIT(src1);
     STRIP_NON_DIGIT(src2);
 
-    vector<int> v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
+    vector<int >v{ TO_NUM(dst), TO_NUM(src1), TO_NUM(src2) };
     return new instruction{i_addr,op::fdiv, v};
   }
   else if (!decodeOP.compare("addi")) {
@@ -151,7 +254,7 @@ instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls)
     STRIP_NON_DIGIT(dst);
     STRIP_NON_DIGIT(src1);
 
-    vector<int> v{ TO_NUM(dst), TO_NUM(src1), src2};
+    vector<int >v{ TO_NUM(dst), TO_NUM(src1), src2};
     return new instruction{i_addr,op::addi, v};
   }
   else if (!decodeOP.compare("bne")) {
@@ -162,12 +265,14 @@ instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls)
     STRIP_NON_DIGIT(dst);
     STRIP_NON_DIGIT(src1);
 
-    vector<int> v{ TO_NUM(dst), TO_NUM(src1), src2};
+    cout << "bne decoding: this addr is " << i_addr << " label is " << (*lbls)[match.str(5)] << endl;
+
+    vector<int >v{ TO_NUM(dst), TO_NUM(src1), src2};
     return new instruction{i_addr,op::bne, v};
   }
   else{
     cout << "bad op BUT WE SHOULD NEVER GET HERE" << endl;
-    vector<int> v;
+    vector<int >v;
     return new instruction{0,op::bad, v};
   }
 

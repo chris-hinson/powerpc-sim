@@ -21,6 +21,9 @@ int main(int argc, char *argv[]) {
     //printf("%spress enter key to begin execution...%s",termcolor::bright_blue,termcolor::reset);
     cout << termcolor::yellow << "press any key to begin execution..." <<termcolor::reset;
     std::cin.ignore();
+    cout << endl;
+
+    new_cpu.step();
 
 
 
