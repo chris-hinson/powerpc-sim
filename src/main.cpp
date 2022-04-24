@@ -6,6 +6,10 @@
 #include "cpu.cpp"
 using namespace std;
 
+
+//abandon all hope ye who enter here.
+//I do not fully grasp c++. this codebase will look like a godforsaken mess of C
+// code with C++ stl usage as close to Rust syntax as possible. I'm truly sorry 
 int main(int argc, char *argv[]) {
 
     if (argc < 2)

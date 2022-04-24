@@ -16,12 +16,22 @@ public:
   vector<char> data;
   size_t PC = 0;
 
+  register_file r;
+
+  //we need a place to store the instructions we have fetched
+  vector<instruction> fetch_buffer;
+  //this is our actual instruction queue (we get to assume it is unlimited)
+  vector<instruction> decode_buffer;
+
   //we need a program file to construct our cpu
   cpu(string filename){
 
     ////////////////////////////////////////////////////////////////////////////
     PC = 0;
 
+    r = register_file();
+
+    //intialize 4Kb of 0s
     data.resize(4096,0);
 
     //parsing our input file
@@ -109,8 +119,8 @@ public:
   vector<instruction> fetch()
   {
     vector <instruction> fetched;
-    vector<int> reads;
-    vector<int> writes;
+    vector<reg> reads;
+    vector<reg> writes;
 
     for (size_t i = 0; i < 4;i++){
 
@@ -124,8 +134,8 @@ public:
       instruction cur = *program[PC];
       printf("trying to fetch:");
       cur.prettyPrint();
-      vector<int> cur_read_deps = cur.read_deps();
-      vector<int> cur_write_deps = cur.write_deps();
+      vector<reg> cur_read_deps = cur.read_deps();
+      vector<reg> cur_write_deps = cur.write_deps();
 
       //check if we are reading from a value that has already been written in this packet
       for(int j:cur_read_deps){
@@ -145,22 +155,47 @@ public:
       //make sure we update our pc
       PC++;
     }
-
-
     return fetched;
+  }
+
+  //really what we're doing is turning a list of instructions using architected registers
+  //into a list of isntructions using physical registers without and WAWs or WARs
+  vector<instruction> decode(vector<instruction> instrs){
+    vector<instruction> good;
+
+    for (instruction i: instrs)
+    {
+      i.rename(&r);
+      good.push_back(i);
+    }
+
+    return good;
   }
 
   //step our cpu
   void step(){
     //FETCH
-    //fetchup to NF instructions
+    //fetchup to NF instructions free of RAWs
     vector<instruction> fetched = fetch();
     cout << "we fetched : "<<endl;
     for (instruction i : fetched)
       i.prettyPrint();
+
+
+      //DEBUGGING ONLY CHRIS YOU NEED TO FUCKING MOVE THIS
+      fetch_buffer = fetched;
+
     //DECODE
-    //decode the instructions coming from fetch
-    //vector<instruction> decoded = decode();
+    //decode the instructions that were in the feched buffer
+    cout << "decoding/renaming" << endl;
+    vector<instruction> decoded = decode(fetch_buffer);
+    //now that we have decoded the fetch buffer, make sure to move the instructions we fetched this cycle into the fetch buffer
+
+    cout << "renamed: " << endl;
+    for(instruction j: decoded)
+      j.prettyPrint();
+
+    prettyPrint();
 
 
     //ISSUE
@@ -205,6 +240,7 @@ public:
       printf("\n");
     }
 
-
+    //print our rf state
+    r.prettyPrint();
   }
 };

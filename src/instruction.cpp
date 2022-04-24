@@ -35,66 +35,66 @@ struct instruction {
   }
 
   //returns registers that the instruction reads from
-  vector<int> read_deps()
+  vector<reg> read_deps()
   {
-    vector<int> deps;
+    vector<reg> deps;
     switch (opcode){
       //fld r0,0(r0)
       case fld:
-        deps.push_back(fields[2]);
+        deps.push_back((reg)fields[2]);
         break;
       //fsd r0,0(r0)
       case fsd:
         //note that in fsd we write to no registers but must read botht the reg
         //whos value we are storing AND the reg who has our address
-        deps.push_back(fields[0]);
-        deps.push_back(fields[2]);
+        deps.push_back((reg)fields[0]);
+        deps.push_back((reg)fields[2]);
         break;
       //add r0,r1,r2
       case add:
-        deps.push_back(fields[1]);
-        deps.push_back(fields[2]);
+        deps.push_back((reg)fields[1]);
+        deps.push_back((reg)fields[2]);
         break;
       //addi r0,r1,3
       case addi:
-        deps.push_back(fields[1]);
+        deps.push_back((reg)fields[1]);
         break;
       //fadd r0,r1,r2
       case fadd:
-        deps.push_back(fields[1]);
-        deps.push_back(fields[2]);
+        deps.push_back((reg)fields[1]);
+        deps.push_back((reg)fields[2]);
         break;
       //fsub r0,r1,r2
       case fsub:
-        deps.push_back(fields[1]);
-        deps.push_back(fields[2]);
+        deps.push_back((reg)fields[1]);
+        deps.push_back((reg)fields[2]);
         break;
       //fmul r0,r1,r2
       case fmul:
-        deps.push_back(fields[1]);
-        deps.push_back(fields[2]);
+        deps.push_back((reg)fields[1]);
+        deps.push_back((reg)fields[2]);
         break;
       //fdiv r0,r1,r2
       case fdiv:
-        deps.push_back(fields[1]);
-        deps.push_back(fields[2]);
+        deps.push_back((reg)fields[1]);
+        deps.push_back((reg)fields[2]);
         break;
       //bne r0,r1,addr
       case bne:
-        deps.push_back(fields[0]);
-        deps.push_back(fields[1]);
+        deps.push_back((reg)fields[0]);
+        deps.push_back((reg)fields[1]);
         break;
       }
       return deps;
     }
 
     //returns the registers that the instruction writes to
-    vector<int> write_deps(){
-      vector<int> deps;
+    vector<reg> write_deps(){
+      vector<reg> deps;
       switch (opcode){
         //fld r0,0(r1)
         case fld:
-          deps.push_back(fields[0]);
+          deps.push_back((reg)fields[0]);
           break;
         //fsd r0,0(r1)
         case fsd:
@@ -102,27 +102,27 @@ struct instruction {
           break;
         //add r0,r1,r2
         case add:
-          deps.push_back(fields[0]);
+          deps.push_back((reg)fields[0]);
           break;
         //addi r0,r1,imm
         case addi:
-          deps.push_back(fields[0]);
+          deps.push_back((reg)fields[0]);
           break;
         //fadd r0,r1,r2
         case fadd:
-          deps.push_back(fields[0]);
+          deps.push_back((reg)fields[0]);
           break;
         //fsub r0,r1,r2
         case fsub:
-          deps.push_back(fields[0]);
+          deps.push_back((reg)fields[0]);
           break;
         //fmul r0,r1,r2
         case fmul:
-          deps.push_back(fields[0]);
+          deps.push_back((reg)fields[0]);
           break;
         //fmul r0,r1,r2
         case fdiv:
-          deps.push_back(fields[0]);
+          deps.push_back((reg)fields[0]);
           break;
         //bne r0,r1,imm
         case bne:
@@ -130,6 +130,83 @@ struct instruction {
           break;
     }
     return deps;
+  }
+
+  //this function has two side effect.
+  //the instruction will be given physical registers free of WAWs and WARs,
+  //and the register file will be updated in accordance
+  void rename(register_file* rf)
+  {
+    switch (opcode){
+      //fld r0,0(r0)
+      case fld:
+        //writes field 0
+        fields[0] = (int)rf->get_reg((reg)fields[0],true);
+        //reads field 2
+        fields[2] = (int)rf->get_reg((reg)fields[2],false);
+        break;
+      //fsd r0,0(r0)
+      case fsd:
+        //writes none
+        //reads 0,2
+        fields[0] = (int)rf->get_reg((reg)fields[0],false);
+        fields[2] = (int)rf->get_reg((reg)fields[2],false);
+        break;
+      //add r0,r1,r2
+      case add:
+        //writes 0
+        fields[0] = (int)(rf->get_reg((reg)fields[0],true));
+        //reads 1,2
+        fields[1] = (int)rf->get_reg((reg)fields[1],false);
+        fields[2] = (int)rf->get_reg((reg)fields[2],false);
+        break;
+      //addi r0,r1,3
+      case addi:
+        //writes 0
+        fields[0] = (int)rf->get_reg((reg)fields[0],true);
+        //reads 1
+        fields[1] = (int)rf->get_reg((reg)fields[1],false);
+        break;
+      //fadd r0,r1,r2
+      case fadd:
+        //writes 0
+        fields[0] = (int)rf->get_reg((reg)fields[0],true);
+        //reads 1,2
+        fields[1] = (int)rf->get_reg((reg)fields[1],false);
+        fields[2] = (int)rf->get_reg((reg)fields[2],false);
+        break;
+      //fsub r0,r1,r2
+      case fsub:
+        //writes 0
+        fields[0] = (int)rf->get_reg((reg)fields[0],true);
+        //reads 1,2
+        fields[1] = (int)rf->get_reg((reg)fields[1],false);
+        fields[2] = (int)rf->get_reg((reg)fields[2],false);
+        break;
+      //fmul r0,r1,r2
+      case fmul:
+        //writes 0
+        fields[0] = (int)rf->get_reg((reg)fields[0],true);
+        //reads 1,2
+        fields[1] = (int)rf->get_reg((reg)fields[1],false);
+        fields[2] = (int)rf->get_reg((reg)fields[2],false);
+        break;
+      //fdiv r0,r1,r2
+      case fdiv:
+        //writes 0
+        fields[0] = (int)rf->get_reg((reg)fields[0],true);
+        //reads 1,2
+        fields[1] = (int)rf->get_reg((reg)fields[1],false);
+        fields[2] = (int)rf->get_reg((reg)fields[2],false);
+        break;
+      //bne r0,r1,addr
+      case bne:
+        //writes none
+        //reads 0,1
+        fields[0] = (int)rf->get_reg((reg)fields[0],false);
+        fields[1] = (int)rf->get_reg((reg)fields[1],false);
+        break;
+      }
   }
 };
 ////////////////////////////////////////////////////////////////////////////////
@@ -265,7 +342,7 @@ instruction* parse(string op, size_t i_addr, unordered_map<string,size_t>* lbls)
     STRIP_NON_DIGIT(dst);
     STRIP_NON_DIGIT(src1);
 
-    cout << "bne decoding: this addr is " << i_addr << " label is " << (*lbls)[match.str(5)] << endl;
+    //cout << "bne decoding: this addr is " << i_addr << " label is " << (*lbls)[match.str(5)] << endl;
 
     vector<int >v{ TO_NUM(dst), TO_NUM(src1), src2};
     return new instruction{i_addr,op::bne, v};
