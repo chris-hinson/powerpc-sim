@@ -5,10 +5,7 @@
 #include "registers.cpp"
 using namespace std;
 
-//#define STRIP_NON_DIGIT(source) source.erase(std::remove_if(source.begin(), source.end(),[](char c) { return !std::isdigit(c); }),source.end());
 #define STRIP_NON_DIGIT(source) source.erase(std::remove_if(source.begin(), source.end(), [](char c) {return std::isspace(c);}),source.end());
-//#define STRIP_NON_DIGIT(str) str.erase(remove_if(str.begin(), str.end(), ::isdigit), str.end())
-//#define TO_NUM(str) atoi(str.c_str())
 #define TO_NUM(str) (int)str_to_reg(str)
 enum op {bad, fld, fsd, add, addi, fadd, fsub, fmul, fdiv, bne};
 
@@ -25,12 +22,66 @@ struct instruction {
   op opcode;
   vector<int> fields;
 
-  void prettyPrint(){
+  void prettyPrint(bool phys_regs){
     printf("%#lx: %s ",address,opNames[opcode]);
-    for (int i: fields)
-    {
-      printf("%d, ",i);
+
+    switch(opcode){
+      case fld:
+        if (phys_regs)
+        {cout << hrd_regNames[fields[0]] << ", "<<"("<<fields[1]<<")"<<hrd_regNames[fields[2]];}
+        else
+        {cout << regNames[fields[0]] << ", "<<"("<<fields[1]<<")"<<regNames[fields[2]];}
+        break;
+      case fsd:
+        if (phys_regs)
+        {cout << hrd_regNames[fields[0]] << ", "<<"("<<fields[1]<<")"<<hrd_regNames[fields[2]];}
+        else
+        {cout << regNames[fields[0]] << ", "<<"("<<fields[1]<<")"<<regNames[fields[2]];}
+        break;
+      case add:
+        if (phys_regs)
+        {cout << hrd_regNames[fields[0]] << ", "<<hrd_regNames[fields[1]]<<", "<<hrd_regNames[fields[2]];}
+        else
+        {cout << regNames[fields[0]] << ", "<<regNames[fields[1]]<<", "<<regNames[fields[2]];}
+        break;
+      case addi:
+        if (phys_regs)
+        {cout << hrd_regNames[fields[0]] << ", "<<hrd_regNames[fields[1]]<<", "<<fields[2];}
+        else
+        {cout << regNames[fields[0]] << ", "<<regNames[fields[1]]<<", "<<fields[2];}
+        break;
+      case fadd:
+        if (phys_regs)
+        {cout << hrd_regNames[fields[0]] << ", "<<hrd_regNames[fields[1]]<<", "<<hrd_regNames[fields[2]];}
+        else
+        {cout << regNames[fields[0]] << ", "<<regNames[fields[1]]<<", "<<regNames[fields[2]];}
+        break;
+      case fsub:
+        if (phys_regs)
+        {cout << hrd_regNames[fields[0]] << ", "<<hrd_regNames[fields[1]]<<", "<<hrd_regNames[fields[2]];}
+        else
+        {cout << regNames[fields[0]] << ", "<<regNames[fields[1]]<<", "<<regNames[fields[2]];}
+        break;
+      case fmul:
+        if (phys_regs)
+        {cout << hrd_regNames[fields[0]] << ", "<<hrd_regNames[fields[1]]<<", "<<hrd_regNames[fields[2]];}
+        else
+        {cout << regNames[fields[0]] << ", "<<regNames[fields[1]]<<", "<<regNames[fields[2]];}
+        break;
+      case fdiv:
+        if (phys_regs)
+        {cout << hrd_regNames[fields[0]] << ", "<<hrd_regNames[fields[1]]<<", "<<hrd_regNames[fields[2]];}
+        else
+        {cout << regNames[fields[0]] << ", "<<regNames[fields[1]]<<", "<<regNames[fields[2]];}
+        break;
+      case bne:
+        if (phys_regs)
+        {cout << hrd_regNames[fields[0]] << ", "<<hrd_regNames[fields[1]]<<", "<<fields[2];}
+        else
+        {cout << regNames[fields[0]] << ", "<<regNames[fields[1]]<<", "<<fields[2];}
+        break;
     }
+
     printf("\n");
   }
 

@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <unordered_map>
 #include "termcolor.hpp"
-#include "instruction.cpp"
+//#include "instruction.cpp"
+#include "ooo.cpp"
 //#include "registers.cpp"
 using namespace std;
 
@@ -15,21 +16,28 @@ public:
   vector<instruction*> program;
   vector<char> data;
   size_t PC = 0;
+  size_t cycles =0;
+
+  rs_file rs;
+  ROB rob;
 
   register_file r;
 
   //we need a place to store the instructions we have fetched
   vector<instruction> fetch_buffer;
-  //this is our actual instruction queue (we get to assume it is unlimited)
-  vector<instruction> decode_buffer;
+  //this is our buffer for decoded and renamed instructions waiting to be issued
+  vector<instruction> instruction_buffer;
 
   //we need a program file to construct our cpu
   cpu(string filename){
 
     ////////////////////////////////////////////////////////////////////////////
     PC = 0;
+    cycles = 0;
 
     r = register_file();
+    rs = rs_file();
+    rob = ROB();
 
     //intialize 4Kb of 0s
     data.resize(4096,0);
@@ -133,7 +141,7 @@ public:
 
       instruction cur = *program[PC];
       printf("trying to fetch:");
-      cur.prettyPrint();
+      cur.prettyPrint(false);
       vector<reg> cur_read_deps = cur.read_deps();
       vector<reg> cur_write_deps = cur.write_deps();
 
@@ -172,41 +180,64 @@ public:
     return good;
   }
 
-  //step our cpu
+  //step our cpu- THIS IS ONE CLOCK CYCLE
   void step(){
+    cout << termcolor::bold << termcolor::red << "STEPPING. THIS IS CLOCK CYCLE: " << cycles << termcolor::reset << endl;
     //FETCH
     //fetchup to NF instructions free of RAWs
     vector<instruction> fetched = fetch();
-    cout << "we fetched : "<<endl;
+    cout <<termcolor::red << "FETCH UNIT GOT : "<<termcolor::reset << endl;
     for (instruction i : fetched)
-      i.prettyPrint();
+      i.prettyPrint(false);
 
-
-      //DEBUGGING ONLY CHRIS YOU NEED TO FUCKING MOVE THIS
-      fetch_buffer = fetched;
 
     //DECODE
     //decode the instructions that were in the feched buffer
-    cout << "decoding/renaming" << endl;
-    vector<instruction> decoded = decode(fetch_buffer);
+    cout << termcolor::red << "DECODE UNIT OUTPUT: " << termcolor::reset << endl;
+    vector<instruction> decoded;
+    if (fetch_buffer.size() > 0){
+      decoded = decode(fetch_buffer);
+      //cout << "renamed: " << endl;
+      for(instruction j: decoded)
+        j.prettyPrint(true);
+    }
+    else{
+      cout << "fetch buffer was empty. is our pipeline full?" << endl;
+    }
     //now that we have decoded the fetch buffer, make sure to move the instructions we fetched this cycle into the fetch buffer
-
-    cout << "renamed: " << endl;
-    for(instruction j: decoded)
-      j.prettyPrint();
-
-    prettyPrint();
+    fetch_buffer = fetched;
 
 
     //ISSUE
     //If a RES station and a ROB are free, issue the instruction to the RES
     //station after reading ready registers and renaming non-ready registers
+    cout << termcolor::red << "ISSUEING INSTRUCTIONS: " << termcolor::reset << endl;
+    for(instruction i: instruction_buffer)
+    {
+      //try and insert every instruction in our instruction buffer
+      //stop trying to do so when we fail to do so
+      if (!rs.issue(i,&rob))
+        break;
+    }
+    //once we have issued as many instructions as we can, push the newly decoded
+    //instructions onto the instruction buffer
+    instruction_buffer.insert(instruction_buffer.end(),decoded.begin(),decoded.end());
+
+
     //EXECUTION
     //When both operands are ready, then execute; if not ready, watch CDB
     //for result; when both in reservation station, execute (checks RAW)
+
+    //iterate over our functional units
+    //if they do not have an operation, get one from a reservation station
+    //if they have an operation, tick the clock cycle on it down
+    //if we tick to 0, do the actual operation and put the result into wb
+
+
     //WRITE RESULT(WB)
     //Write on CDB to all awaiting RES stations & send the instruction to the
     //ROB; mark reservation station available.
+
     //COMMIT (sometimes called graduation)
     //When instruction is at head of ROB, update registers (or memory) with
     //result and free ROB. A miss-predicted branch flushes all non-committed
@@ -219,7 +250,7 @@ public:
     cout << termcolor::blue << "PC = " << PC << "\n" << termcolor::reset;
     cout << termcolor::green <<"cpu instruction \"cache\" : \n" << termcolor::reset;
     for (instruction* i: program)
-        i->prettyPrint();
+        i->prettyPrint(false);
     cout << termcolor::green << "cpu data \"cache\" : \n" << termcolor::reset;
 
     //lets print 16 * 16 = 256 bytes
