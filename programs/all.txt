@@ -1,0 +1,10 @@
+
+start: fld R1,0(R2)
+fsd R3,0(R4)
+add R5,R6,R7
+addi R8,R9,1
+fadd F10,F11,F12
+fsub F13,F14,F15
+fmul F16,F17,F18
+fdiv F19,F20,F21
+bne R22,R23,start
