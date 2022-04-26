@@ -183,6 +183,104 @@ struct instruction {
     return deps;
   }
 
+  //returns registers that the instruction reads from
+  vector<hrd_reg> read_hrd_deps()
+  {
+    vector<hrd_reg> deps;
+    switch (opcode){
+      //fld r0,0(r0)
+      case fld:
+        deps.push_back((hrd_reg)fields[2]);
+        break;
+      //fsd r0,0(r0)
+      case fsd:
+        //note that in fsd we write to no hrd_registers but must read botht the hrd_reg
+        //whos value we are storing AND the hrd_reg who has our address
+        deps.push_back((hrd_reg)fields[0]);
+        deps.push_back((hrd_reg)fields[2]);
+        break;
+      //add r0,r1,r2
+      case add:
+        deps.push_back((hrd_reg)fields[1]);
+        deps.push_back((hrd_reg)fields[2]);
+        break;
+      //addi r0,r1,3
+      case addi:
+        deps.push_back((hrd_reg)fields[1]);
+        break;
+      //fadd r0,r1,r2
+      case fadd:
+        deps.push_back((hrd_reg)fields[1]);
+        deps.push_back((hrd_reg)fields[2]);
+        break;
+      //fsub r0,r1,r2
+      case fsub:
+        deps.push_back((hrd_reg)fields[1]);
+        deps.push_back((hrd_reg)fields[2]);
+        break;
+      //fmul r0,r1,r2
+      case fmul:
+        deps.push_back((hrd_reg)fields[1]);
+        deps.push_back((hrd_reg)fields[2]);
+        break;
+      //fdiv r0,r1,r2
+      case fdiv:
+        deps.push_back((hrd_reg)fields[1]);
+        deps.push_back((hrd_reg)fields[2]);
+        break;
+      //bne r0,r1,addr
+      case bne:
+        deps.push_back((hrd_reg)fields[0]);
+        deps.push_back((hrd_reg)fields[1]);
+        break;
+      }
+      return deps;
+    }
+
+    //returns the registers that the instruction writes to
+  vector<hrd_reg> write_hrd_deps(){
+      vector<hrd_reg> deps;
+      switch (opcode){
+        //fld r0,0(r1)
+        case fld:
+          deps.push_back((hrd_reg)fields[0]);
+          break;
+        //fsd r0,0(r1)
+        case fsd:
+          //fsd does not write to any hrd_regs
+          break;
+        //add r0,r1,r2
+        case add:
+          deps.push_back((hrd_reg)fields[0]);
+          break;
+        //addi r0,r1,imm
+        case addi:
+          deps.push_back((hrd_reg)fields[0]);
+          break;
+        //fadd r0,r1,r2
+        case fadd:
+          deps.push_back((hrd_reg)fields[0]);
+          break;
+        //fsub r0,r1,r2
+        case fsub:
+          deps.push_back((hrd_reg)fields[0]);
+          break;
+        //fmul r0,r1,r2
+        case fmul:
+          deps.push_back((hrd_reg)fields[0]);
+          break;
+        //fmul r0,r1,r2
+        case fdiv:
+          deps.push_back((hrd_reg)fields[0]);
+          break;
+        //bne r0,r1,imm
+        case bne:
+          //bne does not write any hrd_regs
+          break;
+    }
+    return deps;
+  }
+
   //this function has two side effect.
   //the instruction will be given physical registers free of WAWs and WARs,
   //and the register file will be updated in accordance

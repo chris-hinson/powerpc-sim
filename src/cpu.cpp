@@ -212,11 +212,11 @@ public:
     //If a RES station and a ROB are free, issue the instruction to the RES
     //station after reading ready registers and renaming non-ready registers
     cout << termcolor::red << "ISSUEING INSTRUCTIONS: " << termcolor::reset << endl;
-    for(instruction i: instruction_buffer)
+    for(size_t i =0;i<4;i++)
     {
-      //try and insert every instruction in our instruction buffer
+      //try and insert up to 4 instructions to reservation stations
       //stop trying to do so when we fail to do so
-      if (!rs.issue(i,&rob))
+      if (!rs.issue(instruction_buffer[i],&rob))
         break;
     }
     //once we have issued as many instructions as we can, push the newly decoded
@@ -227,6 +227,7 @@ public:
     //EXECUTION
     //When both operands are ready, then execute; if not ready, watch CDB
     //for result; when both in reservation station, execute (checks RAW)
+    cout << termcolor::red << "EXECUTION" << termcolor::reset << endl;
 
     //iterate over our functional units
     //if they do not have an operation, get one from a reservation station
@@ -235,10 +236,12 @@ public:
 
 
     //WRITE RESULT(WB)
+    cout << termcolor::red << "WRITEBACK" << termcolor::reset << endl;
     //Write on CDB to all awaiting RES stations & send the instruction to the
     //ROB; mark reservation station available.
 
     //COMMIT (sometimes called graduation)
+    cout << termcolor::red << "COMMIT" << termcolor::reset << endl;
     //When instruction is at head of ROB, update registers (or memory) with
     //result and free ROB. A miss-predicted branch flushes all non-committed
     //instructions.

@@ -1,5 +1,7 @@
 //this file details the main structures we need for OOO execution,
 //namely our reservation stations, ROB, and register status table
+//we also have an array of values to imitate our CDB
+
 
 #include "instruction.cpp"
 //#include "registers.cpp"
@@ -9,6 +11,20 @@ union actual_val{
   int i;
   float f;
   Nothing n;
+};
+//keep track of where our physical regs "are"
+//- i.e. when we read them where are we reading from
+//can be in the rf, rob, or a cdb
+enum reg_location{rf,rob};
+struct reg_status{
+  std::map<hrd_reg,reg_location> locs;
+
+  reg_status(){
+    for (size_t i=0;i<32;i++)
+    {
+      locs[(hrd_reg)i] = reg_location::rf;
+    }
+  }
 };
 
 enum rob_status{empty,issued,executing,committed};
@@ -24,14 +40,14 @@ struct ROB_entry{
   //keeps track of what PHYSICAL register this instruction will update when it commits
   //this means that when an instruction gets put into a reservation station,
   //if its using that reg, it must wait for this entry to commit
-  int dest;
+  hrd_reg dest;
   //this field contains the actual value that will be commited
   actual_val val;
 
   ROB_entry(){
     busy = false;
     state = rob_status::empty;
-    dest = 0;
+    dest = hrd_reg::hrd_null;
     val = {.n{}};
   }
 };
@@ -87,10 +103,11 @@ struct reservation_station{
   actual_val vj;
   actual_val vk;
   //locations values are coming from
-  int qj;
-  int qk;
-  //destination we will be writing to
-  int dst;
+  //(can be either a reg file hrd_reg or a rr hrd_reg)
+  hrd_reg qj;
+  hrd_reg qk;
+  //destination we will be writing to (should be a physical register)
+  hrd_reg dst;
   //address (needed for memory ops)
   int a;
 
@@ -100,11 +117,15 @@ struct reservation_station{
     op = o;
     vj = {.n{}};
     vk = {.n{}};
-    qj = -1;
-    qk = -1;
-    dst = -1;
+    qj = hrd_reg::hrd_null;
+    qk = hrd_reg::hrd_null;
+    dst = hrd_reg::hrd_null;
     a=-1;
   }
+
+  /*void place(instruction i, reg_status rs){
+
+  }*/
 
 };
 
@@ -124,6 +145,10 @@ struct rs_file{
   std::vector<reservation_station> fpdivs;
   //1 branch
   std::vector<reservation_station> branch;
+
+  //we also want our register status table to keep track of if physical regs are
+  //coming out of the ROB
+  reg_status status;
 
   rs_file(){
     ints.push_back(reservation_station("int1",rs_ops::integer));
@@ -151,22 +176,21 @@ struct rs_file{
 
     branch.push_back(reservation_station("branch1",rs_ops::bu));
 
+    status = reg_status();
 
   }
 
   //this function will put an instr into a rs if an appropriate one is available,
   //or return false if it cannot currently do so
-  bool issue(instruction instr, ROB* r){
+  bool issue(instruction instr, ROB* ree){
     //first just see if we have a rob slot open and return early if we dont
-    bool rob_available = r->available();
+    bool rob_available = ree->available();
     if (!rob_available)
       return false;
 
-
-    //if any of this instructions fields will be coming from a ROB, we need to know
-
-
-    //now we need to check for an open rs of an appropriate kind for this instr
+    bool station_available = false;
+    reservation_station* found;
+    //figure out if theres an appropriate rs for this kind of instr available
     if(instr.opcode == op::add || instr.opcode == op::addi)
     {
       //integer station
@@ -175,7 +199,8 @@ struct rs_file{
         if (!r.busy)
         {
           //put our instr in this rs and give it a ROB entry
-          return true;
+          station_available = true;
+          found = &r;
         }
         //if we didnt find a station, return false
         return false;
@@ -189,7 +214,8 @@ struct rs_file{
         if (!r.busy )
         {
           //put our instr in this rs
-          return true;
+          station_available = true;
+          found = &r;
         }
         //if we didnt find a station, return false
         return false;
@@ -203,7 +229,8 @@ struct rs_file{
         if (!r.busy )
         {
           //put our instr in this rs
-          return true;
+          station_available = true;
+          found = &r;
         }
         //if we didnt find a station, return false
         return false;
@@ -217,7 +244,8 @@ struct rs_file{
         if (!r.busy)
         {
           //put our instr in this rs
-          return true;
+          station_available = true;
+          found = &r;
         }
         //if we didnt find a station, return false
         return false;
@@ -231,7 +259,8 @@ struct rs_file{
         if (!r.busy)
         {
           //put our instr in this rs
-          return true;
+          station_available = true;
+          found = &r;
         }
         //if we didnt find a station, return false
         return false;
@@ -245,7 +274,8 @@ struct rs_file{
         if (!r.busy)
         {
           //put our instr in this rs
-          return true;
+          station_available = true;
+          found = &r;
         }
         //if we didnt find a station, return false
         return false;
@@ -259,26 +289,95 @@ struct rs_file{
         if (!r.busy)
         {
           //put our instr in this rs
-          return true;
+          station_available = true;
+          found = &r;
         }
         //if we didnt find a station, return false
         return false;
       }
     }
-  }
-};
 
-//keep track of where our physical regs "are"
-//- i.e. when we read them where are we reading from
-//can be in the rf, rob, or a cdb
-enum reg_location{rf,rob};
-struct reg_status{
-  std::map<hrd_reg,reg_location> locs;
+    if (!station_available)
+      return false;
 
-  reg_status(){
-    for (size_t i=0;i<32;i++)
+
+    //if any of this instructions fields will be coming from a ROB, we need to
+    //note that in our reservation station
+    vector<hrd_reg> reads = instr.read_hrd_deps();
+    vector<hrd_reg> writes = instr.write_hrd_deps();
+
+    //check all the regs we are READING from with this instr
+    for (hrd_reg h:reads)
     {
-      locs[(hrd_reg)i] = reg_location::rf;
+      //if the register status table says this reg is in the rob
+      if (status.locs[h] == reg_location::rob)
+      {
+        //search the ROB to find what entry it is coming from
+        for(ROB_entry r: ree->entries)
+        {
+          if ((hrd_reg)r.dest == h)
+          {
+            //replace this read with the appropriate renaming register
+            h = (hrd_reg)r.dest;
+            break;
+          }
+        }
+      }
     }
-  }
+    //check all the regs we are WRTING from with this instr
+    /*for (hrd_reg h:writes)
+    {
+      //if the register status table says this reg is in the rob
+      if (status.locs[h] == reg_location::rob)
+      {
+        //search the ROB to find what entry it is coming from
+        for(ROB_entry r: ree->entries)
+        {
+          if ((hrd_reg)r.dest == h)
+          {
+            //replace this read with the appropriate renaming register
+            h = (hrd_reg)r.dest;
+            break;
+          }
+        }
+      }
+    }*/
+
+
+      //now we finally have all the info we need to insert this instruction
+      /*found->busy = true;
+      //values of the operators
+      found->vj =
+      found->vk =
+      //locations of the operators
+      //(only used if they are in the ROB)
+      found->qj =
+      found->qk =
+      //location we are WRITING to
+      found->dst =
+      //address field should only be used by
+      found->a =*/
+
+
+  };
 };
+
+  struct CDB{
+    std::vector<int> cdb;
+
+    CDB(){
+      cdb.push_back(0);
+      cdb.push_back(0);
+      cdb.push_back(0);
+      cdb.push_back(0);
+    }
+  };
+
+  struct speculative{
+    bool predictor;
+    std::map<int, int> BTB;
+
+    speculative(){
+      predictor = false;
+    }
+  };
